@@ -1,6 +1,10 @@
 今天我们深探讨了Cilium如何通过L3/L4和L7策略来实现基于标签的网络访问控制，以及如何实现微服务间的最小权限隔离。我们还会了解标签、Endpoint、Identity、Node等关键概念，以及如何处理Node Taints和Unmanaged Pods等实际问题。
 
-Cilium的核心优势在于它不再依赖于静态的IP地址，而是通过Pod标签来定义安全策略。这意味着无论你的Pod在哪里运行，只要它携带了正确的标签，策略就能自动生效，这大大简化了大规模集群环境下的安全策略管理。我们今天就从一个基础的L3斜杠L4策略开始，看看如何限制只有特定组织的舰船才能访问Deathstar服务。
+Cilium的核心优势在于它不再依赖于静态的IP地址，而是通过Pod标签来定义安全策略。这意味着无论你的Pod在哪里运行，只要它携带了正确的标签，策略就能自动生效，这大大简化了大规模集群环境下的安全策略管理。
+
+## L3/L4策略
+
+我们今天就从一个基础的L3斜杠L4策略开始，看看如何限制只有特定组织的舰船才能访问Deathstar服务。
 
 这张图直观地展示了我们刚才说的L3斜杠L4策略。
 
@@ -8,9 +12,30 @@ Cilium的核心优势在于它不再依赖于静态的IP地址，而是通过Pod
 
 想象一下，Deathstar是帝国的超级武器，它的登陆接口需要严格控制。我们的策略就是，只有那些来自帝国的Tie Fighter舰船，也就是带有org等于empire标签的Pod，才能通过TCP端口80访问Deathstar。而那些来自联盟的X-wing战机，org等于alliance，无论它们怎么靠近，都无法访问这个接口。
 
-这就像给Deathstar装了一个智能门卫，只认帝国的徽章。要实现这个策略，我们需要定义一个CiliumNetworkPolicy，简称CNP。看这个YAML示例。关键部分在于endpointSelector，它通过matchLabels指定了策略的目标：所有带有org等于empire和class等于deathstar标签的Pod。
+这就像给Deathstar装了一个智能门卫，只认帝国的徽章。要实现这个策略，我们需要定义一个CiliumNetworkPolicy，简称CNP。
 
-然后是ingress部分，它定义了允许的流量入口。fromEndpoints再次使用matchLabels来筛选源流量，这里我们要求源必须是org等于empire的Pod。最后，toPorts则精确地指定了目标端口是80，协议是TCP。整个配置逻辑清晰，完全基于标签进行。
+```yaml
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "rule1"
+spec:
+  description: "L3-L4 policy to restrict deathstar access to empire ships only"
+  endpointSelector:
+    matchLabels:
+      org: empire
+      class: deathstar
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        org: empire
+    toPorts:
+    - ports:
+      - port: "80"
+        protocol: TCP
+```
+
+看这个YAML示例。关键部分在于endpointSelector，它通过matchLabels指定了策略的目标：所有带有org等于empire和class等于deathstar标签的Pod。然后是ingress部分，它定义了允许的流量入口。fromEndpoints再次使用matchLabels来筛选源流量，这里我们要求源必须是org等于empire的Pod。最后，toPorts则精确地指定了目标端口是80，协议是TCP。整个配置逻辑清晰，完全基于标签进行。
 
 配置好策略后，我们只需要执行 kubectl create 命令，将这个 YAML 文件应用到 Kubernetes 集群中。这条命令会创建一个名为 rule1 的 CiliumNetworkPolicy。一旦这个策略生效，集群中的网络规则就会立刻改变，只有符合我们设定条件的流量才能通过。策略部署好了，我们来实际测试一下效果。
 
@@ -18,9 +43,42 @@ Cilium的核心优势在于它不再依赖于静态的IP地址，而是通过Pod
 
 如果一切正常，Tie Fighter 的请求应该能成功返回 Ship landed，而 X-wing 的请求则会因为策略拦截而超时或失败。这就像我们之前设定的门禁系统，只有持有帝国徽章的才能顺利通过。为了确认策略确实生效了，我们可以使用 cilium-dbg endpoint list 这个命令。这个工具能直接显示每个端点的状态，包括策略的执行情况。你会看到，那些带有 org等于empire 和 class等于deathstar 标签的 Deathstar Pod，在 ingress policy 列会显示 Enabled，表明它们正在被策略保护。同时，kubectl get cnp 和 kubectl describe cnp 命令也能从 Kubernetes 的视角查看策略的创建和详细信息。
 
-刚才我们实现了L3斜杠L4级别的访问控制，但这还不够精细。在微服务架构中，我们需要更强大的能力来实现最小权限原则。比如，Deathstar可能提供了一些维护API，比如排气口，但这些不应该被普通的Tie Fighter舰船调用。如果我们不加以限制，就可能出现像刚才演示的那样，误操作导致Deathstar爆炸的严重后果。这可不是闹着玩的！这张图展示了L7策略的威力。它不仅限制了谁可以访问，还限制了可以访问什么。你看，即使是从Tie Fighter舰船发出的请求，也只有POST到斜杠v1斜杠request-landing这个特定路径的请求会被允许。任何其他的请求，比如PUT请求，或者POST到其他路径，都会被直接拒绝，返回Access denied。这就像给Deathstar的控制面板加了密码锁，只允许执行特定的指令。要实现这个L7策略，我们只需要在原来的L4策略基础上，添加一个http规则。在toPorts部分，我们添加了rules字段，然后在http里面定义了method和path。这里我们明确指定只允许POST方法，并且路径必须是/v1/request-landing。注意，如果想匹配一个目录下的所有路径，可以使用正则表达式，比如path: /v1/。这个配置使得策略更加灵活和强大。配置好新的L7策略后，我们使用 kubectl apply 命令来更新现有的 rule1 策略。这个命令会将新的配置应用到集群中。
+## L7策略
+
+刚才我们实现了L3斜杠L4级别的访问控制，但这还不够精细。在微服务架构中，我们需要更强大的能力来实现最小权限原则。比如，Deathstar可能提供了一些维护API，比如排气口，但这些不应该被普通的Tie Fighter舰船调用。如果我们不加以限制，就可能出现像刚才演示的那样，误操作导致Deathstar爆炸的严重后果。这可不是闹着玩的！
+
+<img src="https://docs.cilium.io/en/stable/_images/cilium_http_l3_l4_l7_gsg.png" alt="../../_images/cilium_http_l3_l4_l7_gsg.png" style="zoom:33%;" />
+
+这张图展示了L7策略的威力。它不仅限制了谁可以访问，还限制了可以访问什么。你看，即使是从Tie Fighter舰船发出的请求，也只有POST到斜杠v1斜杠request-landing这个特定路径的请求会被允许。任何其他的请求，比如PUT请求，或者POST到其他路径，都会被直接拒绝，返回Access denied。这就像给Deathstar的控制面板加了密码锁，只允许执行特定的指令。要实现这个L7策略，我们只需要在原来的L4策略基础上，添加一个http规则。在toPorts部分，我们添加了rules字段，然后在http里面定义了method和path。这里我们明确指定只允许POST方法，并且路径必须是/v1/request-landing。注意，如果想匹配一个目录下的所有路径，可以使用正则表达式，比如path: /v1/。这个配置使得策略更加灵活和强大。配置好新的L7策略后，我们使用 kubectl apply 命令来更新现有的 rule1 策略。这个命令会将新的配置应用到集群中。
+
+```yaml
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "rule1"
+spec:
+  description: "L7 policy to restrict access to specific HTTP call"
+  endpointSelector:
+    matchLabels:
+      org: empire
+      class: deathstar
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        org: empire
+    toPorts:
+    - ports:
+      - port: "80"
+        protocol: TCP
+      rules:
+        http:
+        - method: "POST"
+          path: "/v1/request-landing"
+```
 
 由于我们是在原有的L4策略基础上增加了L7规则，所以之前的基于标签的访问控制仍然有效，只是现在访问控制更加深入到了HTTP层。现在我们再次测试。这次我们不仅测试POST斜杠v1斜杠request-landing，还要测试POST斜杠v1斜杠exhaust-port和PUT斜杠v1斜杠request-landing。根据我们的策略，只有POST斜杠v1斜杠request-landing应该成功。其他两种请求，无论是方法错误还是路径错误，都应被拒绝，返回Access denied。这完美地体现了L7策略的精细化控制能力。和L4策略一样，我们可以通过 kubectl describe ciliumnetworkpolicies 来查看策略的详细信息，包括新添加的HTTP规则。更进一步，我们可以使用 cilium-dbg policy get 命令来查看Cilium内部实际应用的策略配置。甚至可以使用 cilium-dbg monitor -v --type l7 这样的命令，实时监控网络流量，观察哪些请求被允许，哪些被拒绝，这对于排错和理解策略行为非常有帮助。
+
+## 策略相关概念
 
 在深入探讨了策略应用后，我们来回顾一下几个关键概念。
 
