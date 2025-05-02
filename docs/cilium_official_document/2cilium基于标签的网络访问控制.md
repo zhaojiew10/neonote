@@ -8,7 +8,7 @@ Cilium的核心优势在于它不再依赖于静态的IP地址，而是通过Pod
 
 这张图直观地展示了我们刚才说的L3斜杠L4策略。
 
-<img src="https://docs.cilium.io/en/stable/_images/cilium_http_gsg.png" alt="../../_images/cilium_http_gsg.png" style="zoom: 33%;" />
+![cilium_http_gsg.png](assets/cilium_http_gsg.png)
 
 想象一下，Deathstar是帝国的超级武器，它的登陆接口需要严格控制。我们的策略就是，只有那些来自帝国的Tie Fighter舰船，也就是带有org等于empire标签的Pod，才能通过TCP端口80访问Deathstar。而那些来自联盟的X-wing战机，org等于alliance，无论它们怎么靠近，都无法访问这个接口。
 
@@ -47,7 +47,7 @@ spec:
 
 刚才我们实现了L3斜杠L4级别的访问控制，但这还不够精细。在微服务架构中，我们需要更强大的能力来实现最小权限原则。比如，Deathstar可能提供了一些维护API，比如排气口，但这些不应该被普通的Tie Fighter舰船调用。如果我们不加以限制，就可能出现像刚才演示的那样，误操作导致Deathstar爆炸的严重后果。这可不是闹着玩的！
 
-<img src="https://docs.cilium.io/en/stable/_images/cilium_http_l3_l4_l7_gsg.png" alt="../../_images/cilium_http_l3_l4_l7_gsg.png" style="zoom:33%;" />
+![cilium_http_l3_l4_l7_gsg.png](https://docs.cilium.io/en/stable/_images/cilium_http_l3_l4_l7_gsg.png)
 
 这张图展示了L7策略的威力。它不仅限制了谁可以访问，还限制了可以访问什么。你看，即使是从Tie Fighter舰船发出的请求，也只有POST到斜杠v1斜杠request-landing这个特定路径的请求会被允许。任何其他的请求，比如PUT请求，或者POST到其他路径，都会被直接拒绝，返回Access denied。这就像给Deathstar的控制面板加了密码锁，只允许执行特定的指令。要实现这个L7策略，我们只需要在原来的L4策略基础上，添加一个http规则。在toPorts部分，我们添加了rules字段，然后在http里面定义了method和path。这里我们明确指定只允许POST方法，并且路径必须是/v1/request-landing。注意，如果想匹配一个目录下的所有路径，可以使用正则表达式，比如path: /v1/。这个配置使得策略更加灵活和强大。配置好新的L7策略后，我们使用 kubectl apply 命令来更新现有的 rule1 策略。这个命令会将新的配置应用到集群中。
 
@@ -95,6 +95,6 @@ spec:
 - 既然Identity是集群范围内的概念，那么如何保证所有节点上的Cilium Agent都能得到一致的Identity呢？这就需要集群范围内的身份管理。Cilium利用一个分布式Key-Value存储来实现这一点。当一个节点上的Agent需要为一个Endpoint计算Identity时，它会先提取出该Endpoint的标签，然后查询Key-Value存储。如果这个标签组合是第一次出现，Key-Value存储会生成一个新的唯一ID并返回；如果之前已经存在，就返回之前分配的ID。这样就保证了整个集群内，相同标签的Endpoint拥有相同的Identity。
 
 
-<img src="https://docs.cilium.io/en/stable/_images/identity_store.png" alt="../../_images/identity_store.png" style="zoom:33%;" />
+![../../_images/identity_store.png](https://docs.cilium.io/en/stable/_images/identity_store.png)
 
 - 在Cilium中，Node指的是集群中的一个物理或虚拟机，上面运行着cilium-agent。每个节点都相对独立地运行，尽量减少与其他节点的同步操作，以保证性能和可扩展性。节点之间的状态同步，主要是通过前面提到的Key-Value存储来实现的，或者在某些情况下，通过网络数据包中的元数据来传递信息。每个节点都有自己的网络地址，包括IPv4和IPv6。Cilium在启动时会自动检测到这些地址，并将它们打印出来。这些地址对于Cilium Agent自身以及与其他节点的通信至关重要。了解节点的IP地址有助于我们进行网络排查和配置。在实际部署中，可能会遇到一些挑战，比如某些云平台可能预装了其他的CNI插件。Cilium尝试接管这些节点，但有时可能无法成功，导致一些Pod在Cilium启动之前就获得了网络配置，成为Unmanaged Pods。为了解决这个问题，Cilium可以利用Kubernetes的Node Taints功能。管理员可以在节点上添加一个特定的Taint，阻止Pod被调度到该节点上。当Cilium成功启动并接管了节点后，它会自动移除这个Taint，从而允许后续的Pod被正常调度和管理。

@@ -22,7 +22,7 @@ Ray Serve 的核心价值在于提供了一个轻量级、高性能的模型服�
 
 Ray 的强大之处还在于它的开放性。如果你觉得现有的集成还不够，或者你想对接一些 Ray 官方尚未支持的工具，比如 Snowflake 数据库、JAX 模型，或者 Neptune 实验追踪平台，Ray 提供了清晰的接口让你自己动手扩展。比如，你可以通过实现 DataSource 接口来读取新的数据源，或者通过 DataParallelTrainer 接口来支持新的训练框架。同样，你也可以通过 LoggerCallback 接口来集成自定义的日志工具。这种开放性使得 Ray 不仅是一个强大的工具箱，更是一个可以不断生长、适应你特定需求的生态系统。
 
-<img src="assets/image-20250502130935023.png" alt="image-20250502130935023" style="zoom:50%;" />
+![image-20250502130935023](assets/image-20250502130935023.png)
 
 这张图，就是我们今天讨论的 Ray AIR 生态系统的全景图。它涵盖了从数据集处理、模型训练、超参数调优到最终的模型部署的整个流程。
 
@@ -44,7 +44,7 @@ Ray AIR 和云平台可以是互补的，也可以是替代的。Ray AIR 与专�
 
 那么，如何利用 Ray AIR 来构建自己的定制化 ML 平台呢？这张图展示了可能的架构。
 
-<img src="assets/image-20250502131304837.png" alt="image-20250502131304837" style="zoom:50%;" />
+![image-20250502131304837](assets/image-20250502131304837.png)
 
 核心是 Ray 集群，你可以利用 Ray Autoscaler 根据负载动态调整集群规模。你可以选择在 Kubernetes 上部署 KubeRay。围绕这个核心，你可以根据需要添加各种扩展组件，比如用 Spark 处理数据预处理，用 AirFlow 或者 Ray Workflows 编排整个工作流，用 Jupyter Notebook 进行交互式开发，接入 Feature Store 管理特征，用 MLflow 或者 Weights & Biases 进行实验追踪，甚至可以连接到 S3 等外部存储。Ray AIR 提供了强大的基础，你可以根据具体的业务场景和需求，灵活地组合这些组件，构建出最适合你的 ML 平台。
 

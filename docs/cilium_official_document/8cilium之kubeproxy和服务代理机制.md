@@ -144,25 +144,3 @@ Cilium 的邻居发现也支持多设备环境，比如一个节点有多个网�
 如果你的 cilium Agent 无法正确地检测到 Pod 的 cgroup 路径，Hubble 可能会报错，这时候，你可以退而求其次，使用 cilium-dbg monitor 命令来直接追踪数据包，虽然信息量会少一些，但也能提供关键的调试线索。排查问题时，有时候会遇到集群IP服务无法访问的情况。这时候，一个常见的检查点是 BPF cgroup 程序是否正确地附加到了主机的 cgroup 根目录上。默认情况下，Cilium 的 cgroup 根目录是 /run/cilium/cgrouppv2。你需要检查 bpftool cgroup tree /run/cilium/cgrouppv2/ 的输出，看看有没有 connect、sendmsg、recvmsg 等相关的 BPF 程序被成功附加。
 
 特别要注意的是，如果你的容器运行时比如 containerd 在使用 cgroup namespace 模式，Cilium Agent 可能会错误地把 BPF 程序附加到虚拟化的 cgroup 根目录下，这样就无法正确地拦截和处理 Pod 的流量，导致负载均衡失效。确保你的容器运行时在 cgroup namespace 模式下运行，这是个关键的配置点。任何技术都有可能遇到已知的问题。
-
-
-
-
-
-
-
-```
-kubectl -n kube-system exec ds/cilium -- cilium-dbg status | grep \ kubeProxyReplacement
-```
-
-
-
-
-
-## 
-
-
-
-
-
-## Neighbor Discovery

@@ -6,7 +6,7 @@ Ray 本身是 Python 的，天然契合 Python 生态，GPU 支持也做得很�
 
 理论讲完了，我们来看点实际的。我们用一个经典的乳腺癌数据集来做例子，一步步走一遍完整的 AIR 流程。目标很明确：从数据加载开始，到模型训练、超参数调优、保存、批量预测，最后部署成一个服务。我们会用到前面提到的各个组件，比如 Ray Datasets 处理数据，Preprocessors 做预处理，XGBoostTrainer 训练模型，Tuner 做超参数调优，Checkpoint 保存模型，BatchPredictor 做批量推理，最后用 PredictorDeployment 部署服务。整个过程就像搭积木，每个模块都清晰明了。
 
-<img src="assets/image-20250502125243146.png" alt="image-20250502125243146" style="zoom:50%;" />
+![image-20250502125243146](assets/image-20250502125243146.png)
 
 第一步，数据。在 AIR 里，加载数据的标准姿势就是用 Ray Datasets。它不是简单的 Pandas DataFrame，而是分布式的数据集。这意味着什么？意味着你可以用 Ray 的并行计算能力，比如多核 CPU 或 GPU，来加速你的数据加载和预处理操作。想想看，处理 TB 级别的数据集，用单机肯定要等很久，但有了 Ray Datasets，就能把任务分发到集群里，大大缩短时间。我们这里用 read_csv 从 S3 加载 CSV 文件，非常直观。数据加载进来，通常需要做一些特征工程。这就是 Preprocessors 的用武之地。它们的作用是把原始数据变成模型能直接吃的特征。AIR 的 Preprocessors 和 Ray Datasets 是好朋友，它们可以并行地处理大规模数据。而且，这些预处理步骤通常是可扩展的，你可以先用 fit 方法让预处理器学习一下数据分布，然后在训练和推理时都用它，保证一致性。比如我们这里用 StandardScaler 对两列特征进行标准化，让它们的均值为0，方差为1，这是很多模型喜欢的输入格式。注意，这里只是定义了预处理器，还没真正应用到数据上。
 
