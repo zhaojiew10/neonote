@@ -6,7 +6,7 @@ https://github.com/maxpumperla/learning_ray#
 
 Ray的核心架构设计非常清晰，可以看作是三层结构。
 
-![image-20250501191820966](https://s2.loli.net/2025/05/02/gSA4wszVdfp7Hj2.png)
+![image-20250501191820966](assets/image-20250501191820966.png)
 
 - 最底层是Core，这是整个框架的基石，负责底层的任务调度、Actor模型和通信机制。它就像一个灵活的计算引擎，提供了强大的分布式能力。
 - 往上一层是Libraries，这里包含了针对特定应用场景的优化库，比如我们后面会提到的Tune、RLlib、Train等。这些库极大地简化了特定任务的实现，比如超参数调优、强化学习训练等。

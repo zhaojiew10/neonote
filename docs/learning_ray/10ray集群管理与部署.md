@@ -32,11 +32,11 @@ Ray提供了多种部署集群的方式，这三种方式就是：**手动创建
 
 手动搭建虽然灵活，但管理起来太费劲了。现代企业级应用，尤其是AI训练，都离不开Kubernetes。Kubernetes，简称K8s，是目前公认的集群管理标准，它能帮你自动化地部署、管理和扩展你的应用。
 
-![image-20250502122602723](assets/image-20250502122602723.png)
+<img src="assets/image-20250502122602723.png" alt="image-20250502122602723" style="zoom:50%;" />
 
 对于Ray来说，Kubernetes是最佳拍档。社区维护的KubeRay项目就是官方推荐的解决方案。它通过Kubernetes的自定义资源RayCluster来定义你的集群，然后由一个KubeRay Operator来管理这个集群的生命周期。这个Operator就像一个智能管家，负责创建、删除、扩容、缩容你的Ray集群。
 
-![image-20250502123337712](assets/image-20250502123337712.png)
+<img src="assets/image-20250502123337712.png" alt="image-20250502123337712" style="zoom:50%;" />
 
 部署KubeRay其实不难
 
