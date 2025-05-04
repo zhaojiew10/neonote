@@ -38,84 +38,84 @@
 
 整个流程大致是这样的
 
-1. 构建实验语料库
+构建实验语料库
 
-   ```py
-   sentences = ["Kage is Teacher", "Mazong is Boss", "Niuzong is Boss", "Xiaobing is Student", "Xiaoxue is Student",]
-   
-   词汇表： ['Niuzong', 'Boss', 'Student', 'Xiaoxue', 'Mazong', 'is', 'Kage', 'Xiaobing', 'Teacher']
-   词汇到索引的字典： {'Niuzong': 0, 'Boss': 1, 'Student': 2, 'Xiaoxue': 3, 'Mazong': 4, 'is': 5, 'Kage': 6, 'Xiaobing': 7, 'Teacher': 8}
-   ```
+```py
+sentences = ["Kage is Teacher", "Mazong is Boss", "Niuzong is Boss", "Xiaobing is Student", "Xiaoxue is Student",]
 
-2. 生成 Skip-Gram 数据，对于句子 Kage is Teacher，如果窗口大小是2，那么 is 就是中心词，Kage 和 Teacher 就是上下文词
+词汇表： ['Niuzong', 'Boss', 'Student', 'Xiaoxue', 'Mazong', 'is', 'Kage', 'Xiaobing', 'Teacher']
+词汇到索引的字典： {'Niuzong': 0, 'Boss': 1, 'Student': 2, 'Xiaoxue': 3, 'Mazong': 4, 'is': 5, 'Kage': 6, 'Xiaobing': 7, 'Teacher': 8}
+```
 
-   ```
-   [('is', 'Kage'), ('Teacher', 'Kage'), ('Kage', 'is')]
-   ```
+生成 Skip-Gram 数据，对于句子 Kage is Teacher，如果窗口大小是2，那么 is 就是中心词，Kage 和 Teacher 就是上下文词
 
-3. One-Hot 编码。
+```
+[('is', 'Kage'), ('Teacher', 'Kage'), ('Kage', 'is')]
+```
 
-   ```
-   One-Hot 编码前的单词： Teacher
-   One-Hot 编码后的向量： tensor([0., 0., 0., 0., 0., 0., 0., 0., 1.])
-   ```
+One-Hot 编码。
 
-4. 定义 Skip-Gram 类
+```
+One-Hot 编码前的单词： Teacher
+One-Hot 编码后的向量： tensor([0., 0., 0., 0., 0., 0., 0., 0., 1.])
+```
 
-   ```py
-   import torch.nn as nn
-   class SkipGram(nn.Module):
-       
-       def __init__(self, voc_size, embedding_size):
-           super(SkipGram, self).__init__()
-           # 从词汇表大小到嵌入层大小（维度）的线性层（权重矩阵）
-           self.input_to_hidden = nn.Linear(voc_size, embedding_size, bias=False)  
-           # 从嵌入层大小（维度）到词汇表大小的线性层（权重矩阵）
-           self.hidden_to_output = nn.Linear(embedding_size, voc_size, bias=False)
-           
-       def forward(self, X): # 前向传播的方式，X 形状为 (batch_size, voc_size)      
-            # 通过隐藏层，hidden 形状为 (batch_size, embedding_size)
-               hidden = self.input_to_hidden(X) 
-               # 通过输出层，output_layer 形状为 (batch_size, voc_size)
-               output = self.hidden_to_output(hidden)  
-               return output    
-           
-   embedding_size = 2 # 设定嵌入层的大小
-   skipgram_model = SkipGram(voc_size, embedding_size)  # voc_size 为词表长度
-   ```
+定义 Skip-Gram 类
 
-5. 训练模型
+```py
+import torch.nn as nn
+class SkipGram(nn.Module):
+    
+    def __init__(self, voc_size, embedding_size):
+        super(SkipGram, self).__init__()
+        # 从词汇表大小到嵌入层大小（维度）的线性层（权重矩阵）
+        self.input_to_hidden = nn.Linear(voc_size, embedding_size, bias=False)  
+        # 从嵌入层大小（维度）到词汇表大小的线性层（权重矩阵）
+        self.hidden_to_output = nn.Linear(embedding_size, voc_size, bias=False)
+        
+    def forward(self, X): # 前向传播的方式，X 形状为 (batch_size, voc_size)      
+         # 通过隐藏层，hidden 形状为 (batch_size, embedding_size)
+            hidden = self.input_to_hidden(X) 
+            # 通过输出层，output_layer 形状为 (batch_size, voc_size)
+            output = self.hidden_to_output(hidden)  
+            return output    
+        
+embedding_size = 2 # 设定嵌入层的大小
+skipgram_model = SkipGram(voc_size, embedding_size)  # voc_size 为词表长度
+```
 
-   ```py
-   learning_rate = 0.001 # 设置学习速率
-   epochs = 1000 # 设置训练轮次
-   criterion = nn.CrossEntropyLoss()  # 定义交叉熵损失函数
-   
-   import torch.optim as optim # 导入随机梯度下降优化器
-   optimizer = optim.SGD(skipgram_model.parameters(), lr=learning_rate)  
-   loss_values = []  # 用于存储每轮的平均损失值
-   for epoch in range(epochs):
-       loss_sum = 0 # 初始化损失值
-       for context, target in skipgram_data:        
-           X = one_hot_encoding(target, word_to_idx).float().unsqueeze(0) # 将中心词转换为 One-Hot 向量  
-           y_true = torch.tensor([word_to_idx[context]], dtype=torch.long) # 将周围词转换为索引值 
-           y_pred = skipgram_model(X)  # 计算预测值
-           loss = criterion(y_pred, y_true)  # 计算损失
-           loss_sum += loss.item() # 累积损失
-           optimizer.zero_grad()  # 清空梯度
-           loss.backward()  # 反向传播
-           optimizer.step()  # 更新参数
-       if (epoch+1) % 100 == 0: # 输出每 100 轮的损失，并记录损失
-         print(f"Epoch: {epoch+1}, Loss: {loss_sum/len(skipgram_data)}")  
-         loss_values.append(loss_sum / len(skipgram_data))
-   ```
+训练模型
 
-6. 展示词向量
+```py
+learning_rate = 0.001 # 设置学习速率
+epochs = 1000 # 设置训练轮次
+criterion = nn.CrossEntropyLoss()  # 定义交叉熵损失函数
 
-   ```py
-   for word, idx in word_to_idx.items(): # 输出每个词的嵌入向量
-   	print(f"{word}: {skipgram_model.input_to_hidden.weight[:,idx].detach().numpy()}")
-   ```
+import torch.optim as optim # 导入随机梯度下降优化器
+optimizer = optim.SGD(skipgram_model.parameters(), lr=learning_rate)  
+loss_values = []  # 用于存储每轮的平均损失值
+for epoch in range(epochs):
+    loss_sum = 0 # 初始化损失值
+    for context, target in skipgram_data:        
+        X = one_hot_encoding(target, word_to_idx).float().unsqueeze(0) # 将中心词转换为 One-Hot 向量  
+        y_true = torch.tensor([word_to_idx[context]], dtype=torch.long) # 将周围词转换为索引值 
+        y_pred = skipgram_model(X)  # 计算预测值
+        loss = criterion(y_pred, y_true)  # 计算损失
+        loss_sum += loss.item() # 累积损失
+        optimizer.zero_grad()  # 清空梯度
+        loss.backward()  # 反向传播
+        optimizer.step()  # 更新参数
+    if (epoch+1) % 100 == 0: # 输出每 100 轮的损失，并记录损失
+      print(f"Epoch: {epoch+1}, Loss: {loss_sum/len(skipgram_data)}")  
+      loss_values.append(loss_sum / len(skipgram_data))
+```
+
+展示词向量
+
+```py
+for word, idx in word_to_idx.items(): # 输出每个词的嵌入向量
+	print(f"{word}: {skipgram_model.input_to_hidden.weight[:,idx].detach().numpy()}")
+```
 
 ## CBOW
 
