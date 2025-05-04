@@ -22,7 +22,7 @@ Ray 的高层库，比如我们后面会提到的 Rllib、Tune 等，配置起�
 
 你可以想象，Ray Core 是地基，高层库是建筑，而生态系统则是不断丰富和扩展的周边设施。
 
-<img src="assets/image-20250501210231372.png" alt="image-20250501210231372" style="zoom: 67%;" />
+<img src="assets/ray生态架构图.png" alt="ray三层架构图" style="zoom: 67%;" />
 
 ## Ray Core
 

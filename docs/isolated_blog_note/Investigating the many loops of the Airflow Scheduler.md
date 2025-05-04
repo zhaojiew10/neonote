@@ -50,7 +50,7 @@
 
 我们来看这个核心的循环：SchedulerJobRunner._run_scheduler_loop。_
 
-![image-20250503231805458](https://s2.loli.net/2025/05/03/evjrSHWkbOzgoU1.png)
+![image-20250503231805458](assets/evjrSHWkbOzgoU1.png)
 
 1. 初始化一些定时器，这些定时器由EventScheduler管理。
 2. 进入一个无限循环。在每次循环中执行调度逻辑，即调用self._do_scheduling，这个方法包含了核心的TaskInstance和DagRun调度逻辑。

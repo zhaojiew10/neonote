@@ -89,7 +89,7 @@ print_runtime(all_data, start)
 
 这大大提高了程序的灵活性和效率。现实世界中，任务往往不是孤立的，一个任务的结果可能需要作为下一个任务的输入。比如，我们先用 retrieve_task 获取数据，再用 follow_up_task 基于这个结果做进一步处理。Ray是怎么处理这种依赖关系的呢？神奇的是，你只需要像写普通Python代码一样，把前一个任务的返回值传递给下一个任务，比如 follow_up_task(remote(ref))，Ray就能自动帮你搞定。它会分析任务之间的依赖关系，确保 follow_up_task 只在 retrieve_task 完成后才执行。而且，**中间产生的大型数据，Ray可以直接在对象存储里传递引用，不用复制回Driver**，非常高效。
 
-<img src="assets/image-20250501210256811-1746168747004-3.png" alt="image-20250501210256811-1746168747004-3" style="zoom:67%;" />
+<img src="assets/ray顺序调用任务.png" alt="ray顺序调用任务" style="zoom:67%;" />
 
 除了函数，我们还**可以把Python类也变成分布式对象**，这就是Ray的Actor。Actor允许你在集群中运行带有状态的计算，比如一个计数器，或者一个状态机。Actor之间还可以互相通信，这对于实现复杂的分布式算法非常有用。
 
@@ -137,11 +137,11 @@ print(ray.get(tracker.counts.remote()))
 
 ## Ray的内部运作机制
 
-<img src="assets/image-20250501212552081.png" alt="image-20250501212552081" style="zoom:50%;" />
+<img src="assets/Ray的内部运作机制.png" alt="Ray的内部运作机制" style="zoom:50%;" />
 
 现在我们来看看Ray的内部运作机制。**一个Ray集群由多个节点组成，每个节点都有一个Raylet进程。Raylet是节点上的智能组件，负责管理Worker进程和调度任务**。
 
-<img src="assets/image-20250501212530888.png" alt="image-20250501212530888" style="zoom:50%;" />
+<img src="assets/ray节点进程.png" alt="ray节点进程" style="zoom:50%;" />
 
 Raylet内部有两个关键部分：
 
@@ -168,7 +168,7 @@ Ray并不是孤立存在的，它与很多其他系统都有联系。
 
 理解这些关系，有助于我们更好地定位Ray在整个生态系统中的位置。为了让大家更直观地感受Ray的威力，我们来看一个经典的分布式计算例子——MapReduce。
 
-<img src="assets/image-20250501212615701.png" alt="image-20250501212615701" style="zoom:50%;" />
+<img src="assets/ray的mp示例.png" alt="ray的mp示例" style="zoom:50%;" />
 
 Word Count就是MapReduce最经典的用例。它包含三个核心步骤：Map、Shuffle和Reduce。Map阶段负责处理原始数据，比如把文档转换成单词和计数。Shuffle阶段负责把相同键的值聚集到一起，这在分布式环境中通常需要跨节点的数据移动。Reduce阶段则负责聚合这些数据，得到最终结果。
 
