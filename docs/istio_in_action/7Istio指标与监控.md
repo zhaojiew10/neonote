@@ -1,0 +1,44 @@
+为什么现在“可观测性”这个词如此火？很简单，因为我们的系统越来越复杂了！以前可能一个应用就是一个大单体，现在呢？动不动就是几十上百个服务，像蜘蛛网一样交织在一起。服务一多，网络依赖就更复杂，出问题的概率自然就指数级上升。所以，光有高可用还不够，我们必须能快速发现问题，知道哪里出了问题，这直接关系到我们修复问题的速度，也就是MTTR。可观测性就是我们实现这个目标的基石。
+
+到底什么是“可观测性”？简单来说，就是你通过观察外部表现，比如日志、指标、追踪信息，就能判断系统内部到底在干嘛。可观测性让我们能从外部信号反推系统内部状态，从而知道什么时候一切正常，什么时候需要介入，进行自动或手动的调整。那Istio在这个过程中扮演什么角色呢？Istio的数据平面，也就是我们熟悉的Envoy代理，能收集大量的网络层面的指标，比如请求延迟、错误率、流量分布等等。这些数据被送到Istio的控制平面，控制平面就能根据这些信息，做出决策，比如做流量切换、实施熔断限流、或者执行安全策略。所以，**Istio在可观测性方面，主要贡献的是它在应用网络层面的深度洞察力**。
+
+很多人可能会把“可观测性”和“监控”混为一谈，但它们是有区别的。
+
+- 监控，你可以理解为一种更传统的、被动的告警方式。我们设定好一些阈值，比如CPU使用率超过百分之八十就报警，磁盘满了就扩容。但问题在于，它只能告诉你已知的问题。比如，一个数据库的磁盘满了，监控会报警，但如果你的系统因为某个特定用户的请求导致某个服务响应特别慢，但整体指标看起来还行，那监控可能就抓瞎了。
+- 可观测性，它假设你的系统是高度不可预测的，它鼓励你收集更广泛的数据，甚至包括那些看似无用的高基数数据，比如用户ID、请求ID，然后用强大的工具去探索这些数据，去发现那些意想不到的异常。它**更关注的是“为什么”和“上下文”，而不是仅仅“有没有”问题**。
+
+为什么可观测性这么强调细粒度数据？因为很多时候，问题就藏在那些被聚合掉的细节里。举个例子，用户John Doe，ID 400000021，他在购物车里付钱，结果卡了10秒！用户体验非常差，他可能直接就卸载了APP。但是，你去看你的监控系统，CPU、内存、磁盘、队列深度，所有指标都显示正常，甚至优于平均水平。监控系统告诉你：一切正常。但用户明明感受到了延迟！这就是监控的局限性。
+
+可观测性要求我们保留这些原始的、细粒度的事件数据，这样才能在问题发生时，回溯到具体的用户、具体的请求、具体的路径，找到真正的原因。没有这些上下文，调试就成了大海捞针。那么，Istio是如何帮助我们构建可观测系统的呢？
+
+1. Envoy代理在请求处理的最核心路径上，能直接看到请求的处理情况、服务间的通信细节。比如，每秒钟有多少请求进来？平均耗时多少？哪个服务响应最慢？哪个服务出错了？这些数据，Envoy都能帮你收集起来。
+2. Istio还支持动态添加新的指标，这意味着你可以在系统运行时，根据需要，去关注一些之前没有预料到的信号。
+3. 原生支持分布式追踪，可以给每个请求打上唯一的ID，记录它穿越整个服务链的路径，哪个环节耗时最长，一目了然。
+4. Istio还自带了和Prometheus、Grafana、Kiali这些流行工具的集成，让你轻松就能把数据可视化、分析
+
+Istio的Envoy代理，它自己就在默默记录着大量的指标，关于连接、请求、性能等等。我们先部署一个简单的应用，包含两个服务：apigateway和catalog。部署完成后，我们用curl命令测试一下，确保这两个服务能正常工作。这一步主要是确保我们有一个可以观察的环境。Envoy代理把这些数据都存放在它内部的一个端口，通常是15000。我们可以通过kubectl exec命令，进入我们刚刚部署的apigateway服务所在的Pod，然后切换到它的istio proxy容器，再用curl命令访问localhost:15000/stats这个端点。
+
+```shell
+$ kubectl exec -it $(make apigateway-pod) -c istio-proxy \
+-- curl localhost:15000/stats | grep cluster.local | grep 8080
+apigateway.istioinaction.svc.cluster.local.bind_errors: 0
+apigateway.istioinaction.svc.cluster.local.internal.upstream_rq_200: 3
+apigateway.istioinaction.svc.cluster.local.internal.upstream_rq_2xx: 3
+apigateway.istioinaction.svc.cluster.local.internal.upstream_rq_completed: 3
+...
+```
+
+手动去每个Pod里查指标，效率太低了，尤其是在服务很多的时候。我们需要一个更自动化的方法。这就是**推送模式**。我们可以**配置Istio的代理，让它自动把收集到的指标，实时发送给一个专门的指标收集器**，比如StatsD。StatsD是一个非常流行的开源工具，可以用来接收、格式化和转发各种统计信息。
+
+首先，我们需要一个StatsD服务器。这里我们用一个简单的YAML文件来部署一个。
+
+```
+kubectl apply -f chapters/chapter7/statsd
+deployment.apps/statsd created service/statsd created
+```
+
+部署完成后，我们用kubectl get pod找到这个新创建的Pod，然后用kubectl exec进去，看看它的Admin接口。我们可以用一个简单的命令，比如echo counters | nc 127.0.0.1 8126，来查询当前的计数器状态。如果一切正常，你会看到一些基本的StatsD内部计数器。这说明我们的StatsD服务器已经运行起来了。
+
+现在，我们来告诉Istio代理，把数据推给它。我们编辑apigateway服务的Deployment YAML文件，找到istio proxy容器的启动参数args部分。在这一堆参数里，我们需要添加一行新的参数：--statsUdpAddress。这个参数告诉Envoy，你要把统计数据发送到哪个地址和端口。这里我们填上statsd:8125，因为我们之前部署的StatsD服务器服务名是statsd，端口是8125。保存并退出编辑器。Kubernetes会自动滚动更新Pod，创建一个新的带有这个配置的Pod。等一会儿，新的apigateway Pod启动了，旧的Pod就结束了。现在，我们再次回到statsd Pod，用同样的方法查询一下计数器。你会发现，这次的输出里，除了之前StatsD自己的计数器外，多了一大堆以envoy开头的指标，比如envoy_cluster_upstream_rq_total、envoy_http_downstream_rq_total等等。这些就是我们的Envoy代理推送给StatsD的指标！这说明我们的推送配置成功了。刚才我们手动修改了apigateway的Deployment，但这只适用于手动创建的Pod。在实际生产中，我们通常会使用Kubernetes的自动注入或者istioctl kube inject命令来注入Sidecar。这时候，我们需要修改一个全局配置，让所有注入的Sidecar都默认推送数据。这个配置就在istio system命名空间下的istio sidecar injector ConfigMap里。我们同样用kubectl edit cm斜杠istio sidecar injector n istio system命令去编辑它。在template部分，找到对应的参数位置，添加上我们刚才用的--statsUdpAddress statsd冒号8125。这样，以后所有通过这个方式注入的Sidecar，都会自动推送数据到StatsD了。除了StatsD这种Push模式，还有一个更主流的选择是Prometheus。Prometheus是另一个非常流行的监控系统，它采用的是Pull模式。什么意思呢？就是Prometheus服务器自己主动去各个目标那里拉取数据，而不是等目标来推。看这张图，Prometheus会定期去访问Istio代理暴露的指标端点。这种方式有很多优点，比如Prometheus的查询语言非常强大，而且它有一个庞大的生态系统，配合Grafana等可视化工具效果非常好。接下来，我们就来看看如何用Prometheus来抓取Istio的指标。在使用Prometheus之前，我们得确认一下，Istio代理是不是真的暴露了Prometheus格式的指标端点。这个端口通常默认是15090。我们可以通过一个稍微复杂一点的kubectl get pod命令和jsonpath参数来精确地找到它。拿到端口号后，我们还是用kubectl exec进入Pod，然后curl访问这个端口下的斜杠stats斜杠prometheus路径。如果一切正常，你会看到一堆以envoy_开头的指标，这就是Prometheus格式的指标。这证明了Istio代理确实支持Prometheus的拉取模式。现在我们知道了Istio代理暴露了Prometheus指标，下一步就是配置Prometheus服务器去抓取它。这需要一个Prometheus的配置文件，通常是prometheus.yml。在这个文件里，我们定义一个抓取任务，指定任务名称、抓取的指标路径、以及最重要的，如何发现抓取的目标。这里我们使用kubernetes_sd_configs，告诉Prometheus去查询Kubernetes API，发现所有Pod。然后，我们需要用relabel_configs来做一些标签转换和重命名，确保Prometheus能正确地识别和组织这些来自不同Pod的指标。比如，把Pod的地址、命名空间、Pod名称等信息作为标签，方便后续查询。有了Prometheus的配置文件，我们需要把它放到Kubernetes集群里。通常的做法是把它打包成一个ConfigMap，然后挂载到运行Prometheus的Pod里。我们创建一个ConfigMap，里面包含我们的prometheus.yml文件。接着，我们修改Prometheus的Deployment YAML文件，让它挂载这个ConfigMap到容器的斜杠etc斜杠prometheus目录下，并且在容器的启动参数args里，指定配置文件的路径为斜杠etc斜杠prometheus斜杠prometheus点yml。这样，Prometheus Pod启动后，就能读取并使用这个配置文件了。在配置Prometheus的时候，还有两个重要的点需要注意。第一，Prometheus需要权限去访问Kubernetes API来发现服务和端点，所以必须配置正确的RBAC权限，给Prometheus的ServiceAccount绑定相应的ClusterRole。第二，Envoy代理会生成大量的指标，有些可能对我们没用，或者会导致存储压力过大。我们可以在Prometheus的配置文件里，使用metrics_relabel_configs来过滤掉一些不需要的指标。比如，可以设置规则，把带有特定标签的指标直接丢弃。这样可以减少抓取和存储的数据量。现在，我们把配置好的Prometheus Deployment YAML文件部署到集群里。这个文件通常会包含RBAC配置、ConfigMap挂载等。部署完成后，我们用kubectl get pod命令看看Prometheus Pod是否成功启动。等它启动后，我们就可以通过端口转发，把本地的9090端口映射到Prometheus Pod的9090端口，然后在浏览器里访问 http://localhost:9090，打开Prometheus的表达式浏览器界面。如果一切顺利，你应该能看到这个界面。Prometheus虽然能收集和查询数据，但它的可视化界面相对简单。对于需要更丰富、更美观的仪表盘来说，Grafana是一个更好的选择。Grafana是一个非常流行的开源可视化工具，可以连接各种数据源，包括我们刚刚配置好的Prometheus。我们先安装一个Grafana的Deployment，然后同样通过端口转发，将本地的3000端口映射到Grafana Pod的3000端口。这样，我们就可以在浏览器里访问 http://localhost:3000，进入Grafana的界面了。进入Grafana后，第一步是告诉它，你要从哪里获取数据。我们点击左侧的加号，选择Data Source，然后选择Prometheus。在配置界面，给这个数据源起个名字，比如Prometheus。类型选择Prometheus，然后在URL栏里填入我们之前部署的Prometheus服务的内部DNS地址，通常是http://prometheus:9090。Access模式一般选Server默认就行。配置完成后，点击Save & Test。如果一切正常，你会看到一个绿色的Data source is working提示，表示Grafana已经成功连接到Prometheus了。现在，我们可以创建仪表板了。在Grafana主页，点击加号，选择Dashboard。然后选择一个面板类型，比如Graph。在弹出的面板编辑器里，你会看到一个查询编辑框，这里选择我们刚刚配置的Prometheus数据源。然后，输入你想要查询的指标，比如envoy_cluster_upstream_rq_total，点击Execute。你会看到一个图表显示出来了。你可以调整图表的标题、显示的时间范围、图例等等。配置好后，点击Save，给这个仪表板起个名字。这样，你就可以通过Grafana，直观地看到Istio的指标变化了。前面我们看到的都是Istio代理自带的指标，这些指标虽然很多，但可能无法完全满足我们特定的需求。有时候，我们想自定义一些指标，比如专门统计某个特定服务的请求量。Istio提供了一个强大的Telemetry功能，允许我们基于请求的元数据来创建新的指标。这个过程需要三个步骤：首先，定义一个Metric实例，告诉Istio这个新指标叫什么，以及要记录哪些属性，比如来源、目标、IP地址。然后，定义一个Handler，告诉Istio这个指标是哪种类型，比如计数器，Counter，还是仪表，Gauge，以及要把它发送到哪里，比如Prometheus。最后，定义一个Rule，告诉Istio在什么条件下，比如请求的目标服务是apigateway，才触发这个指标的创建和发送。我们来看一个具体的例子。假设我们要创建一个名为apigatewayrequestcount的指标，专门用来计数发送到apigateway服务的请求。我们创建一个Metric资源，定义它的值是1，表示每次匹配都计数一次，然后指定要跟踪的维度，比如来源、目标、目标IP。接着，我们创建一个Handler，指定类型是Prometheus，给这个指标起个在Prometheus里显示的名字，比如apigateway_request_count，指定它的类型是COUNTER，也就是计数器，并且列出我们想在Prometheus里显示的标签。最后，我们创建一个Rule，设置匹配条件是destination.service等于apigateway.istioinaction.svc.cluster.local，然后指定动作是将这个Metric实例发送到我们刚刚定义的Handler。把这三个YAML文件一起用kubectl create命令创建出来。创建完这些资源后，我们向apigateway服务发送几次请求，比如 curl 命令。然后，我们再次访问Prometheus的表达式浏览器界面。在查询框里输入 istio_apigateway，你会发现Prometheus自动补全了我们刚刚创建的指标名 istio_apigateway_request_count。点击这个指标名，然后点击 Execute。如果之前发送了请求，你应该就能看到这个新指标的计数值了。这说明我们的自定义指标通过Istio Telemetry成功地被记录并发送到了Prometheus。
+
+今天我们深入探讨了如何利用Istio来提升我们微服务系统的可观测性。我们学习了如何收集Istio代理产生的网络指标，可以通过Push模式推送到StatsD，也可以通过Pull模式拉取到Prometheus。我们还看到了如何使用Grafana将这些指标可视化，以及如何利用Istio的Telemetry功能来创建自定义的、更贴合业务需求的指标。掌握这些能力，能让我们更深入地理解系统运行时的状态，更快地发现和解决问题。当然，Istio的可观测性能力远不止于此，后续我们还会继续深入探讨。
