@@ -88,15 +88,15 @@ Direct Connect的核心在于虚拟接口。这就像在您的本地路由器和
 
 上图更清晰地展示了Direct Connect Gateway的作用。它就像一个中央枢纽，可以连接来自不同AWS区域的多个VPC，同时也可以连接到本地网络。**通过一个BGP会话，您的本地路由器就可以学习到所有关联VPC的路由信息，从而实现跨区域的访问。**
 
-![image-20251202211852677](assets/image-20251202211852677.png)
+![image-20251202211852677](https://s2.loli.net/2025/12/02/CFvzBdpaSDf2AQ5.png)
 
 在这个场景中，我们通常会使用私有虚拟接口。如上图所示，您在本地创建一个私有VIF，将其关联到之前创建的Direct Connect Gateway。**这个VIF需要指定一个VLAN ID和您的本地BGP ASN**。这个私有VIF就像是本地网络通往Direct Connect Gateway的一个入口。
 
-![image-20251202212055123](assets/image-20251202212055123.png)
+![image-20251202212055123](https://s2.loli.net/2025/12/02/NgKj7Bxlr6Ovq8U.png)
 
 数据是如何流动的呢？当本地发起对某个关联VPC的请求时，数据首先通过本地路由器，经过私有VIF，进入Direct Connect线路，到达AWS侧的Direct Connect Gateway。Gateway根据BGP路由信息，将数据转发到目标VPC。返回的数据流则反向进行。整个过程都是通过私有IP地址完成的，绕过了公共互联网。
 
-![image-20251202212112298](assets/image-20251202212112298.png)
+![image-20251202212112298](https://s2.loli.net/2025/12/02/XiMwRP7fWETx1pH.png)
 
 关于账户所有权，需要特别注意。Direct Connect Gateway本身是由一个AWS账户比如账户C创建和拥有的。**而连接到这个Gateway的私有VIF，可以由同一个账户创建，也可以由另一个不同的账户比如账户D创建**。这种跨账户的灵活性在大型组织中非常有用，可以实现责任分离和成本归集。
 
@@ -112,7 +112,7 @@ Direct Connect的核心在于虚拟接口。这就像在您的本地路由器和
 
 继续第二步，配置路由器。由于物理连接通常由账户D拥有，所以需要在账户D的路由器上下载并应用相应的配置，确保它能正确地将流量导向刚刚创建的私有VIF。最后的关键一步接受私有VIF。这需要回到账户C，也就是DX Gateway的所有者。在账户C中，你需要找到刚才创建的私有VIF，然后点击接受。在这个过程中，你需要明确指定这个VIF要连接到哪个DX Gateway，也就是账户C中创建的那个。这样，VIF和Gateway之间的连接就正式建立了。
 
-![image-20251202212844282](assets/image-20251202212844282.png)
+![image-20251202212844282](https://s2.loli.net/2025/12/02/hFMVRwvkzQ5E6rx.png)
 
 第三步，创建虚拟网关VGW。这需要在拥有目标VPC的账户，我们称之为账户A中完成。VGW是VPC连接到Direct Connect Gateway的桥梁。你需要将VGW附加到具体的VPC上。在这个例子中，我们假设是默认VPC。VGW的BGP ASN在这里其实不那么重要，因为它主要用于内部路由通告。
 
@@ -120,17 +120,17 @@ Direct Connect的核心在于虚拟接口。这就像在您的本地路由器和
 
 第四步，将VGW与DX Gateway关联。这同样需要在账户A中进行。你需要指定DX Gateway的ID，也就是账户C中创建的那个。这里还可以选择性地配置一个前缀过滤器，决定哪些VPC CIDR块需要通过DX Gateway通告给本地网络。配置完成后，需要在账户C中再次确认并接受这个关联请求。账户C可以审查并修改前缀过滤器。
 
-![image-20251202213024031](assets/image-20251202213024031.png)
+![image-20251202213024031](https://s2.loli.net/2025/12/02/UpyGMxsPh9n3SuJ.png)
 
 第五步，也是最后一步，验证BGP路由。你需要检查两个地方的路由表：一个是VPC的路由表，确保它包含了指向本地网络的路由；另一个是本地路由器的路由表，确保它已经学习到了VPC的路由信息。如果两边的路由都正确，那么跨区域的连接就成功了。你可以用ping或者traceroute等工具来实际测试连通性。
 
 ### Transit Gateway混合云连接
 
-![image-20251202213122216](assets/image-20251202213122216.png)
+![image-20251202213122216](https://s2.loli.net/2025/12/02/ByS8zgVjMc2UdXR.png)
 
 如何使用AWS Transit Gateway来实现混合云连接。这个场景更侧重于在本地网络和多个AWS VPC之间建立一个统一的、可扩展的连接架构。混合云连接的**目标是将本地网络与AWS上的多个VPC无缝集成**。Transit Gateway在这里扮演着核心角色，它就像一个中央路由器，可以将各种附件——包括本地的Direct Connect连接、VPC、甚至VPN连接在一起。
 
-![image-20251202213224189](assets/image-20251202213224189.png)
+![image-20251202213224189](https://s2.loli.net/2025/12/02/Awd1DZeOCV3uEzB.png)
 
 在这个场景中，我们通常会将Transit Gateway与Direct Connect Gateway结合起来使用。如图所示，本地网络通过Direct Connect连接到Transit Gateway。**Transit Gateway内部可以连接多个VPC，无论是同一个账户下的还是不同账户下的。同时，Transit Gateway也可以通过Direct Connect Gateway连接到其他区域的VPC，实现广域的网络互联。**
 
