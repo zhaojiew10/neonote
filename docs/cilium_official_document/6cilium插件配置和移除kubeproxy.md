@@ -10,7 +10,7 @@
 
 这就像给Cilium提供了一套定制化的说明书。Helm的配置选项最终会转化成Cilium内部使用的ConfigMap中的键值对。这个转换过程非常重要。比如，你通过 Helm 设置了 cni.readCniConf 指向一个路径，那么在 Cilium 的 ConfigMap 中，就会出现一个名为 read-cni-conf 的键，它的值就是你指定的路径。同样，cni.customConf 会映射到 cni-exclusive 这个键。理解这个映射关系，能让你更清晰地看到 Helm 的配置是如何影响 Cilium 的实际行为的。这就像翻译官，把你的指令翻译成 Cilium 能懂的语言。
 
-![image-20250501124152381](assets/image-20250501124152381.png)
+![image-20250501124152381](https://s2.loli.net/2025/12/02/2opvPdh5Hlr74UD.png)
 
 我们进入一个更高级的话题：CRD验证。这在 Kubernetes 1.8.0 版本之后就引入了，虽然早期是 Alpha 版本，但现在已经非常成熟。对于 Cilium 来说，从 v1.0.0-rc3 开始，它就能自动创建或更新 Cilium Network Policy 的 CRD，并且把验证规则也就是 Schema 嵌入进去。这意味着什么呢？当你尝试创建或修改一个 Cilium Network Policy 时，验证会在 kube-apiserver 这个核心组件那里进行，而不是等到 Cilium 执行时才发现问题。这大大提高了效率和安全性。当然，前提是你得在启动 kube-apiserver 时，加上 --feature-gates=CustomResourceValidation=true 这个参数。
 
@@ -172,7 +172,7 @@ Cilium 的 eBPF-kube-proxy 替代方案提供了多种方式来解决这个问�
 - 对于 externalTrafficPolicy=Local，也就是只允许来自本地节点的流量访问本地后端服务，Cilium 通常能通过 eBPF 实现来避免 SNAT，即使在没有本地后端的情况下，集群内的其他节点也能访问到这个服务。对于默认的 externalTrafficPolicy=Cluster，Cilium 也提供了多种选项，比如 DSR 或者 Hybrid 模式，来实现外部流量的源 IP 保留。
 - 除了外部流量，集群内部的流量也一样可以进行策略控制。这就是 internalTrafficPolicy。它的逻辑和 externalTrafficPolicy 类似。internalTrafficPolicy=Local 表示，来自集群内部 Pod 的流量，只能被路由到同一个节点上的后端服务。而 internalTrafficPolicy=Cluster 是默认设置，它不限制后端服务，流量可以被路由到任何节点上的后端服务。这张表清晰地展示了不同组合下，南北向和东西向流量的后端选择情况。理解这些策略，能让你在设计内部网络拓扑时，有更精细的控制能力。
 
-<img src="assets/image-20250501125029799.png" alt="image-20250501125029799" style="zoom:50%;" />
+<img src="https://s2.loli.net/2025/12/02/3DfnZhGzprU4cjk.png" alt="image-20250501125029799" style="zoom:50%;" />
 
 默认情况下，如果你定义了一个 LoadBalancer 服务，Cilium 不仅会创建 LoadBalancer 服务，还会同时创建对应的 NodePort 和 ClusterIP 服务。同样，如果你创建了一个 NodePort 服务，也会默认创建一个 ClusterIP 服务。
 

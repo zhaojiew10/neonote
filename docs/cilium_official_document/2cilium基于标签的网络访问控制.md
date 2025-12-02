@@ -8,7 +8,7 @@ Cilium的核心优势在于它不再依赖于静态的IP地址，而是通过Pod
 
 这张图直观地展示了我们刚才说的L3斜杠L4策略。
 
-![cilium_http_gsg.png](assets/cilium_http_gsg.png)
+![cilium_http_gsg.png](https://s2.loli.net/2025/12/02/HyYFaUMbES5GfeR.png)
 
 想象一下，Deathstar是帝国的超级武器，它的登陆接口需要严格控制。我们的策略就是，只有那些来自帝国的Tie Fighter舰船，也就是带有org等于empire标签的Pod，才能通过TCP端口80访问Deathstar。而那些来自联盟的X-wing战机，org等于alliance，无论它们怎么靠近，都无法访问这个接口。
 
@@ -95,6 +95,6 @@ spec:
 - 既然Identity是集群范围内的概念，那么如何保证所有节点上的Cilium Agent都能得到一致的Identity呢？这就需要集群范围内的身份管理。Cilium利用一个分布式Key-Value存储来实现这一点。当一个节点上的Agent需要为一个Endpoint计算Identity时，它会先提取出该Endpoint的标签，然后查询Key-Value存储。如果这个标签组合是第一次出现，Key-Value存储会生成一个新的唯一ID并返回；如果之前已经存在，就返回之前分配的ID。这样就保证了整个集群内，相同标签的Endpoint拥有相同的Identity。
 
 
-![../../_images/identity_store.png](https://docs.cilium.io/en/stable/_images/identity_store.png)
+![../../_images/identity_store.png](https://s2.loli.net/2025/12/02/HYdStK2yomOfLzc.png)
 
 - 在Cilium中，Node指的是集群中的一个物理或虚拟机，上面运行着cilium-agent。每个节点都相对独立地运行，尽量减少与其他节点的同步操作，以保证性能和可扩展性。节点之间的状态同步，主要是通过前面提到的Key-Value存储来实现的，或者在某些情况下，通过网络数据包中的元数据来传递信息。每个节点都有自己的网络地址，包括IPv4和IPv6。Cilium在启动时会自动检测到这些地址，并将它们打印出来。这些地址对于Cilium Agent自身以及与其他节点的通信至关重要。了解节点的IP地址有助于我们进行网络排查和配置。在实际部署中，可能会遇到一些挑战，比如某些云平台可能预装了其他的CNI插件。Cilium尝试接管这些节点，但有时可能无法成功，导致一些Pod在Cilium启动之前就获得了网络配置，成为Unmanaged Pods。为了解决这个问题，Cilium可以利用Kubernetes的Node Taints功能。管理员可以在节点上添加一个特定的Taint，阻止Pod被调度到该节点上。当Cilium成功启动并接管了节点后，它会自动移除这个Taint，从而允许后续的Pod被正常调度和管理。

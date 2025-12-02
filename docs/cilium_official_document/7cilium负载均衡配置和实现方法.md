@@ -29,11 +29,11 @@ Geneve DSR不仅支持Native-Routing模式，也支持Encapsulation模式，但�
 
 但有时候，我们希望对不同的服务，采用不同的策略。比如，某个服务对延迟敏感，适合用DSR，而另一个服务对MTU调整比较敏感，更适合用SNAT。Cilium提供了基于Annotation的配置方式，让你可以在每个Service的定义里，通过添加注释来指定它应该使用哪种模式。比如，添加service.cilium.io/forwarding-mode: dsr，这个服务就会强制使用DSR。如果注释为空，或者没有注释，那么就按照全局的默认模式来。这种方式非常灵活，可以根据具体的服务需求进行精细化配置。当然，一旦服务创建完成，这个注释就不能轻易更改了，否则可能会导致连接中断。
 
-![image-20250501131839664](assets/image-20250501131839664.png)
+![image-20250501131839664](https://s2.loli.net/2025/12/02/t1w6fNQRIO7YbZy.png)
 
 除了DSR/SNAT模式，我们还可以通过Annotation来控制负载均衡算法的选择。默认情况下，如果全局没有指定，Cilium会使用随机算法。但如果你希望某个服务使用Maglev，以保证一致性哈希，就可以在它的Service定义里添加注释：service.cilium.io/lb-algorithm: maglev。同样，如果注释为空，或者没有注释，就按照全局的默认算法来。这种方式特别适合那些对性能要求不高的服务，或者后端节点数量很少的服务，可以避免使用Maglev带来的额外内存开销。配置也很简单，只需要设置bpf.lbAlgorithmAnnotation等于true，然后在Service定义里添加相应的注释即可。
 
-![image-20250501131850542](assets/image-20250501131850542.png)
+![image-20250501131850542](https://s2.loli.net/2025/12/02/XCSpaWomtJi8sVP.png)
 
 Cilium通常在Socket层就完成了负载均衡，应用层看起来是直接连接到服务的ClusterIP，但实际上内核socket已经连接到了后端。但这在某些特殊场景下，比如Istio Sidecar、KubeVirt、Kata Containers、gVisor等，可能会出现问题。因为这些场景可能需要访问原始的ClusterIP，而不是经过Socket LB转换后的后端IP。为了解决这个问题，Cilium提供了Socket LB Bypass功能。通过设置socketLB.hostNamespaceOnly等于true，Cilium会绕过Socket层的负载均衡，让数据包回到TC层进行处理，这样就可以保证Pod内部的网络操作能够访问到正确的ClusterIP。这就像给特定的VIP用户开了一个后门，让他们可以绕过常规的安检通道。
 

@@ -48,7 +48,7 @@
 
 我们来看看这个模式的入口流量是怎么走的。
 
-![image-20250501114434841](assets/image-20250501114434841.png)
+![image-20250501114434841](https://s2.loli.net/2025/12/02/KbvQTw5anEkdjoA.png)
 
 - 首先，流量从实例的ENI接口，比如ethN进来。
 - 然后，内核会根据路由规则，比如上面这个例子，把发往本地Pod的流量导向主路由表。主路由表里会有一个精确匹配路由，比如这个例子，把目标地址是192.168.105.44的流量，通过设备1xc5a4def8d96c5转发。这个设备1xc5a4def8d96c5实际上是一个veth对的一端，它连接着Pod的网络命名空间。
@@ -88,7 +88,7 @@ default via 192.168.0.1 dev eth2
 
 现在我们来聊聊IP地址管理，也就是IPAM。简单来说，**IPAM就是负责给Cilium管理的网络端点比如容器分配IP地址的**。它有很多种模式，每种模式都有自己的特点和适用场景。这张表总结了不同IPAM模式在支持隧道路由、直接路由、CIDR配置方式、是否支持多CIDR集群或节点、以及是否支持动态分配IP等方面的能力。
 
-![image-20250501114711786](assets/image-20250501114711786.png)
+![image-20250501114711786](https://s2.loli.net/2025/12/02/3aFbCeGRIgSmYzd.png)
 
 比如，Kubernetes Host Scope模式依赖Kubernetes配置，而Cluster Scope模式则由Cilium自己配置。AWS ENI和Azure IPAM是针对特定云平台的，GKE模式则是在原生路由基础上进行优化。理解这些模式的区别，有助于我们根据实际需求选择合适的配置。
 
@@ -110,7 +110,7 @@ default via 192.168.0.1 dev eth2
 
 AWS ENI模式的IPAM架构是基于CRD-Backed Allocator的。当一个节点上的Cilium Agent第一次启动时，它会创建一个名为ciliumnodes.cilium.io的Custom Resource，里面包含了这个节点的实例ID、实例类型、VPC信息等。Operator会监听这个CRD，一旦发现新的节点，就自动开始管理这个节点的IPAM。
 
-![image-20250501114947579](assets/image-20250501114947579.png)
+![image-20250501114947579](https://s2.loli.net/2025/12/02/SlrvRqtwoPA2OhD.png)
 
 Operator会去扫描EC2实例，找出已有的ENI和它们关联的IP地址，然后把这些可用的IP地址发布到CiliumNode的spec.ipam.available字段里。同时，它还会监控节点上已使用的IP地址，一旦发现IP不足，就会自动创建新的ENI，或者从已有ENI上分配更多的IP地址，以满足预分配水位的需求。更棒的是，你可以为每个节点单独配置不同的子网和安全组，实现精细化的网络隔离。
 

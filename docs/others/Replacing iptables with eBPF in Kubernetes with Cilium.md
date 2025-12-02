@@ -12,19 +12,19 @@ https://metaso.cn/s/ghH9RCy
 
 Netfilter模块作为网络过滤器，已经在Linux内核中存在了二十多年，它需要在数据包上下行穿越栈的过程中进行过滤。这种设计在早期很有效，但随着网络规模和复杂度的爆炸式增长，它的局限性就显现出来了。BPF的强大之处在于，它可以在内核的多个关键点上插入钩点，也就是所谓的BPF Hooks。
 
-![image-20250502132220229](assets/image-20250502132220229.png)
+![image-20250502132220229](https://s2.loli.net/2025/12/02/n8OkfuwsJVQ7LF6.png)
 
 这张图展示了BPF如何嵌入到Linux内核的各个层级。从用户空间的进程，到系统调用接口，再到套接字层、Netfilter、IP层、以太网层，甚至底层的硬件驱动、桥接和OVS，BPF都能找到自己的位置。这意味着我们可以利用BPF来实现各种各样的网络功能，从流量控制、负载均衡到安全过滤，几乎覆盖了整个网络栈。
 
-![image-20250502132239546](assets/image-20250502132239546.png)
+![image-20250502132239546](https://s2.loli.net/2025/12/02/hy5dV9oxmqnQ4Kt.png)
 
 这张图展示了不同网络过滤技术的性能对比。横轴是不同的技术，纵轴是每秒百万包的处理能力。可以看到，基于硬件卸载的bpfiler性能达到了惊人的60Mpps，远超其他技术。即使是纯软件驱动的bpfiler也有接近40Mpps。相比之下，传统的legacy iptables和nftables性能则明显落后。这直观地说明了BPF在高性能网络过滤方面的巨大优势。
 
-![image-20250502132257988](assets/image-20250502132257988.png)
+![image-20250502132257988](https://s2.loli.net/2025/12/02/BXCJ2rNVSgbLEHG.png)
 
 这张图展示了BPF如何取代iptables。它清晰地展示了数据包在网络栈中的五个主要阶段：PREROUTING、INPUT、FORWARD、OUTPUT、POSTROUTING。在每个阶段，都可以看到eBPF和XDP的钩点。这意味着我们可以利用BPF来实现更灵活、更高效的过滤、路由和NAT功能，而不再依赖于传统的iptables规则链。BPF代码可以直接在这些钩点上运行，处理数据包，然后决定是继续转发还是丢弃。
 
-![image-20250502132318603](assets/image-20250502132318603.png)
+![image-20250502132318603](https://s2.loli.net/2025/12/02/9tmYcnH58CWBAVa.png)
 
 这张图展示了基于BPF的过滤架构。它特别强调了连接跟踪（Connection Tracking）的流程。
 
@@ -34,7 +34,7 @@ Netfilter模块作为网络过滤器，已经在Linux内核中存在了二十多
 
 整个过程都是基于BPF的高效执行，而不是传统的链表遍历。
 
-![image-20250502132343998](assets/image-20250502132343998.png)
+![image-20250502132343998](https://s2.loli.net/2025/12/02/eGMhuqpCmFlI8QH.png)
 
 这张图展示了BPF基于尾调用的机制。它展示了如何构建一个高效的程序链来处理网络包。每个BPF程序只在需要执行相关操作时才被注入，它们通过尾调用（tail calls）连接起来，形成一个链式结构。这种机制避免了传统的链表遍历，极大地提高了性能。
 
@@ -59,7 +59,7 @@ CNI，即容器网络接口，是CNCF的一个项目，它定义了容器网络�
 
 Cilium作为CNI插件，遵循这些规范。
 
-![image-20250502134719822](assets/image-20250502134719822.png)
+![image-20250502134719822](https://s2.loli.net/2025/12/02/pRhwY7oIsLVQnby.png)
 
 这张图展示了Cilium作为CNI插件的控制流程。
 
@@ -70,7 +70,7 @@ Cilium作为CNI插件，遵循这些规范。
 - BPF Maps存储着网络相关的数据，比如MAC地址映射。
 - BPF程序通过BPF Hook作用于eth0接口，实现网络的配置和管理。
 
-![image-20250502132629629](assets/image-20250502132629629.png)
+![image-20250502132629629](https://s2.loli.net/2025/12/02/GbZ7nhtLMHVSzId.png)
 
 这张图更详细地展示了Cilium的组件以及BPF Hook点和BPF Maps在Linux网络栈中的位置。
 
@@ -79,13 +79,13 @@ Cilium作为CNI插件，遵循这些规范。
 
 这些组件共同协作，实现了Cilium的网络功能。注意看BPF Maps是如何连接用户空间和内核空间的，以及BPF Hook是如何在数据包处理路径上发挥作用的。
 
-![image-20250502132646258](assets/image-20250502132646258.png)
+![image-20250502132646258](https://s2.loli.net/2025/12/02/8qGDRdx5jSBCLz1.png)
 
 这张图展示了Cilium作为CNI插件的典型部署。在Kubernetes节点上，每个Pod都有一个容器，比如容器A、容器B、容器C。每个容器通过eth0接口连接到一个虚拟网络接口，比如lxc0或lxc1。这些虚拟接口由Cilium负责管理。Cilium通过eth0接口连接到物理网卡，实现了Pod之间的通信。这种架构下，Cilium不仅负责网络连接，还负责执行网络策略，提供隔离和安全。
 
 Cilium支持两种主要的网络模式：封装模式和直接路由模式。
 
-![image-20250502132709291](assets/image-20250502132709291.png)
+![image-20250502132709291](https://s2.loli.net/2025/12/02/TvNBdWo53QY6gKL.png)
 
 - 封装模式下，Cilium负责在节点间路由，通常使用VXLAN隧道进行数据包封装。这适用于需要跨节点网络隔离的场景。
 
@@ -93,17 +93,17 @@ Cilium支持两种主要的网络模式：封装模式和直接路由模式。
 
 选择哪种模式取决于具体的应用场景和性能需求。
 
-![image-20250502132747362](assets/image-20250502132747362.png)
+![image-20250502132747362](https://s2.loli.net/2025/12/02/Gl1iyLmPKtgwY9s.png)
 
 这张图展示了Pod IP路由的Overlay模式（隧道模式）。在这种模式下，当两个Pod需要跨节点通信时，数据包会被封装在VXLAN隧道中。封装后的数据包包含源节点IP、目标节点IP、VXLAN头部信息以及原始的Pod IP和负载数据。Cilium负责在节点间转发这些封装后的数据包，直到目标节点解封装，然后才能被目标Pod接收。这种方式保证了跨节点的网络隔离。
 
-![image-20250502132804561](assets/image-20250502132804561.png)
+![image-20250502132804561](https://s2.loli.net/2025/12/02/EVOixCpqMQZD3UN.png)
 
 这张图展示了Pod IP路由的直接路由模式。在这种模式下，Pod的IP地址可以直接路由到网络中。当一个Pod需要访问另一个Pod时，数据包直接携带目标Pod的IP地址和负载信息，通过网络路由转发。这种模式下，网络头部信息非常简洁，只包含源Pod IP和目标Pod IP以及负载。这使得通信效率更高，延迟更低，适合对性能要求高的场景。
 
 现在我们来看Cilium的网络策略功能，首先是基于标签的三层过滤，针对入站流量。
 
-![image-20250502132835861](assets/image-20250502132835861.png)
+![image-20250502132835861](https://s2.loli.net/2025/12/02/D3CGzol8a5r2Yis.png)
 
 这张图展示了如何定义一个策略，允许特定标签的Pod访问另一个标签的Pod。例如，允许所有标签为frontend的Pod访问标签为backend的Pod。这通过CiliumNetworkPolicy资源来定义，非常直观。注意，这里的策略是基于标签的，而不是基于IP的，这使得策略管理更加灵活，尤其是在Pod动态调度的情况下。
 
@@ -113,17 +113,17 @@ Cilium支持两种主要的网络模式：封装模式和直接路由模式。
 
 Cilium最强大的功能之一是七层过滤，也就是基于应用层协议，特别是HTTP协议的过滤。这张图展示了如何实现基于API的访问控制。比如，一个Pod可以访问另一个Pod的GET斜杠articles斜杠id API，但无法访问GET斜杠private API。这需要对HTTP请求的内容进行解析，才能做出正确的决策。这是实现七层过滤的YAML示例。它定义了一个名为frontend-backend的策略，作用于所有标签为backend的Endpoint。在ingress部分，它允许访问端口80，并且通过L7规则，允许特定的HTTP请求路径。这使得我们可以基于具体的API请求来控制访问权限，实现更精细化的安全策略。
 
-![image-20250502133035947](assets/image-20250502133035947.png)
+![image-20250502133035947](https://s2.loli.net/2025/12/02/dPOxLKuD1Ce7J3s.png)
 
 这张图展示了如何将Cilium与Envoy这样的独立代理结合使用，实现七层过滤。在Node A上，Envoy通过libcilium.so生成L7过滤程序，然后通过Cilium和BPF模块进行L3斜杠L4过滤。Node B也类似。这种方式下，Envoy负责处理复杂的七层逻辑，而Cilium利用BPF进行高效的底层处理，实现了性能和功能的平衡。
 
 接下来，我们来看Cilium的其他一些关键特性。Cluster Mesh是Cilium的一个重要特性，它允许跨集群的网络通信。
 
-![image-20250502133053890](assets/image-20250502133053890.png)
+![image-20250502133053890](https://s2.loli.net/2025/12/02/H9iONdhksfYBeVI.png)
 
 这张图展示了两个集群，A和B，它们都运行了Cilium。通过Cluster Mesh，集群A中的Pod可以访问集群B中的Pod，反之亦然。这使得多集群环境下的服务发现和网络通信变得非常方便。图中Pod A和Pod B、C都通过Cilium连接到一个共享的etcd实例，用于协调和管理跨集群的网络配置。
 
-![image-20250502133114170](assets/image-20250502133114170.png)
+![image-20250502133114170](https://s2.loli.net/2025/12/02/nVBO8puE7AY1SGb.png)
 
 这张图展示了在没有Cilium的情况下，Istio如何实现透明的Sidecar注入。可以看到，Envoy代理被注入到Pod中，与应用进程共享网络命名空间。Envoy通过监听应用端口，拦截流量，然后转发给应用。这种方式需要在应用端口和Envoy端口之间建立连接，可能会引入额外的延迟和复杂性。
 
@@ -131,11 +131,11 @@ Cilium最强大的功能之一是七层过滤，也就是基于应用层协议�
 
 这张图展示了Istio与Cilium和sockmap结合后的架构。Cilium作为CNI插件，负责Pod的网络连接。Envoy作为Sidecar，仍然被注入到Pod中。但是，**Cilium通过sockmap技术，将Envoy的监听端口映射到应用的端口。这样，应用可以直接访问Envoy，而无需建立额外的连接**。这种方式利用了BPF的高效性，实现了更透明、更快速的Sidecar注入。
 
-![image-20250502133149647](assets/image-20250502133149647.png)
+![image-20250502133149647](https://s2.loli.net/2025/12/02/kmnlGAg68jypOVa.png)
 
 这张图展示了完整的Istio和Cilium集成。可以看到，Istio的控制平面（Pilot、Mixer、Citadel）负责服务发现、路由和安全策略。数据平面则由Envoy代理和Cilium网络组成。Cilium负责底层的网络连接和数据包处理，Envoy负责七层的负载均衡、路由和安全策略。这种结合充分发挥了Cilium和Istio各自的优势，构建了一个高性能、可扩展的服务网格。
 
-![image-20250502133211767](assets/image-20250502133211767.png)
+![image-20250502133211767](https://s2.loli.net/2025/12/02/gfozyhlHiXVIJDp.png)
 
 这张图展示了Istio与Cilium结合实现的双向TLS认证。可以看到，服务A和B之间的通信被加密，通过Mutual TLS确保了双方的身份认证。这种安全通信是通过Istio的控制平面和Envoy的代理，以及Cilium的网络基础设施来实现的。
 
@@ -143,7 +143,7 @@ Cilium最强大的功能之一是七层过滤，也就是基于应用层协议�
 
 这张图展示了Istio与Cilium结合的Deferred kTLS特性。kTLS，即Kernel TLS，是内核直接提供TLS加密功能。Deferred kTLS允许在需要时才进行TLS加密，而不是在所有连接上都强制开启。这可以提高性能，尤其是在不需要加密的场景下。Cilium与Istio的结合，使得这种优化成为可能。
 
-![image-20250502133245966](assets/image-20250502133245966.png)
+![image-20250502133245966](https://s2.loli.net/2025/12/02/2IKUCBj4Qwfyagk.png)
 
 我们对比一下Kubernetes服务的实现方式。在Cilium和BPF中，服务路由通常使用哈希表。查找、插入和删除操作都是O(1)常数时间复杂度，非常高效。而在传统的Iptables和kube-proxy中，服务路由是基于线性列表的。查找是O(n)线性时间复杂度，插入和删除也是O(n)。这意味着，当服务数量增加时，BPF的性能优势会更加明显。
 
@@ -151,7 +151,7 @@ Cilium最强大的功能之一是七层过滤，也就是基于应用层协议�
 
 Cilium可以与其他CNI插件链式使用。比如，你可以将Cilium与Flannel、Calico、Weave、AWS CNI、Azure CNI等结合。例如，你可以使用一个CNI插件负责基础的网络配置，比如IP地址分配和网络接口配置，而Cilium则负责策略执行、负载均衡和多集群连接。这种链式组合提供了极大的灵活性，可以根据具体需求选择合适的组件。
 
-![image-20250502133341723](assets/image-20250502133341723.png)
+![image-20250502133341723](https://s2.loli.net/2025/12/02/Yaz31tKWfBOl5ym.png)
 
 Cilium原生支持AWS的弹性网络接口（ENI）。这张图展示了如何利用Cilium的Operator来读取ENI上的预分配IP地址，然后将这些IP地址分配给Pod使用。这使得Cilium能够充分利用AWS提供的网络功能，实现高性能的网络连接。Hubble是Cilium生态系统中的一个重要组件，它是一个分布式网络和安全可观测性平台。它建立在Cilium和eBPF之上，提供了对云原生工作负载的深度洞察。Hubble提供服务依赖关系和通信图谱、运维监控和告警、应用监控以及安全可观测性。虽然目前还处于Beta阶段，但其潜力巨大，是构建现代可观测性平台的关键工具。
 
@@ -161,11 +161,11 @@ Hubble由几个核心组件构成。
 - Hubble CLI是一个命令行工具，可以连接到Hubble Agent，查询存储的流量数据。
 - Hubble UI则提供了图形化的服务通信图谱，基于Hubble Agent收集的数据。
 
-![image-20250502135511146](assets/image-20250502135511146.png)
+![image-20250502135511146](https://s2.loli.net/2025/12/02/VkGKAfrlwiEhavU.png)
 
 这张图展示了Hubble在Cilium和eBPF之上的运行架构。可以看到，Hubble Agent与Cilium Agent紧密协作，收集网络流量信息。这些信息通过Hubble的API暴露出来，供Hubble CLI和Hubble UI使用。同时，Hubble还可以与Grafana、Prometheus等监控系统集成，提供更全面的可观测性。
 
-![image-20250502135455652](assets/image-20250502135455652.png)
+![image-20250502135455652](https://s2.loli.net/2025/12/02/9bKqPr1xlOQAagJ.png)
 
 这张图展示了Hubble提供的服务通信图谱。它以图形化的方式展示了不同服务之间的依赖关系和通信流量。例如，可以看到recruiter服务通过HTTP访问coreapi，elasticsearch服务通过TCP访问，kafka服务通过TCP访问zookeeper等。这种可视化对于理解复杂系统的运行状态至关重要。
 

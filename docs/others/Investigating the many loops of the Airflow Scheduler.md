@@ -24,11 +24,11 @@
 - DagRun，是DAG在运行时的实例化，代表了特定时间点的DAG执行。
 - TaskInstance，是Task在运行时的实例化，它属于某个DagRun。
 
-![image-20250503231327988](assets/image-20250503231327988.png)
+![image-20250503231327988](https://s2.loli.net/2025/12/02/rsEOQV9BDuHy8fA.png)
 
 这张图形象地展示了它们之间的关系：Operator实现为Task，Task在DagRun和TaskInstance中被实例化。记住这个层级关系，有助于我们后续理解调度过程。
 
-![image-20250503231421846](assets/image-20250503231421846.png)
+![image-20250503231421846](https://s2.loli.net/2025/12/02/NDUObFkSWrqmtE3.png)
 
 这张图展示了Airflow任务调度和执行的整体框架。可以看到
 
@@ -39,7 +39,7 @@
 
 整个流程清晰地描绘了从任务定义到实际执行的完整路径。
 
-<img src="assets/image-20250503231543672.png" alt="image-20250503231543672" style="zoom: 67%;" />
+<img src="https://s2.loli.net/2025/12/02/NkzhjBQbR13YLde.png" alt="image-20250503231543672" style="zoom: 67%;" />
 
 要开始调度任务，第一步就是启动scheduler。
 
@@ -50,7 +50,7 @@
 
 我们来看这个核心的循环：SchedulerJobRunner._run_scheduler_loop。_
 
-![image-20250503231805458](assets/evjrSHWkbOzgoU1.png)
+![image-20250503231805458](https://s2.loli.net/2025/12/02/PvAC17hWfqXKrme.png)
 
 1. 初始化一些定时器，这些定时器由EventScheduler管理。
 2. 进入一个无限循环。在每次循环中执行调度逻辑，即调用self._do_scheduling，这个方法包含了核心的TaskInstance和DagRun调度逻辑。
@@ -60,20 +60,20 @@
 
 scheduler内部运行着许多定时任务，由EventScheduler管理。
 
-<img src="assets/image-20250503232235299.png" alt="image-20250503232235299" style="zoom:50%;" />
+<img src="https://s2.loli.net/2025/12/02/hd4TYFtS1Ianclq.png" alt="image-20250503232235299" style="zoom:50%;" />
 
 上图中一些关键的后台任务，比如检查孤儿任务、触发超时、收集池指标、查找僵尸进程等。每个任务都有对应的配置设置，例如orphaned_tasks_check_interval，以及默认的执行间隔。有些任务，如清理过期的DAGs，其配置设置是None，这意味着它们的执行时间可能由其他机制触发，或者依赖于特定的配置。这些定时器共同维护了scheduler的健康状态和资源管理。
 
 现在我们深入到调度的核心方法SchedulerJobRunner._do_scheduling。这个方法大致包含几个关键步骤。
 
-<img src="assets/image-20250503232939256.png" alt="image-20250503232939256" style="zoom:50%;" />
+<img src="https://s2.loli.net/2025/12/02/iY5TVu8Nnr6fGtO.png" alt="image-20250503232939256" style="zoom:50%;" />
 
 1. 根据配置SCHEDULER_MAX_DAGRUNS_TO_CREATE_PER_LOOP，通常为10，创建新的DAGRuns，按NEXT_DAGRUN_CREATE_AFTER排序。
 2. 启动排队中的DAGRuns。
 3. 获取一批需要检查的正在运行的DAGRuns，用于后续的调度。核心步骤是安排所有DAGRuns的运行，并且限制在MAX_DAGRUNS_PER_LOOP_TO_SCHEDULE，通常为20。
 4. 为正在运行的DAGRuns调度任务实例，更新状态，并将处于Scheduled状态的TaskInstances放入队列，使其对executor可见。
 
-<img src="assets/image-20250503232955458.png" alt="image-20250503232955458" style="zoom:50%;" />
+<img src="https://s2.loli.net/2025/12/02/Vf5XQxrGcS4iI8g.png" alt="image-20250503232955458" style="zoom:50%;" />
 
 这个过程是scheduler的核心决策逻辑。在调度任务实例时，scheduler会进入一个关键的临界区，以确保并发访问的安全性。
 
@@ -83,7 +83,7 @@ scheduler内部运行着许多定时任务，由EventScheduler管理。
 
 我们再来看executor的心跳过程。
 
-<img src="assets/image-20250503233116183.png" alt="image-20250503233116183" style="zoom: 50%;" />
+<img src="https://s2.loli.net/2025/12/02/huEfbd6sR7HwgSV.png" alt="image-20250503233116183" style="zoom: 50%;" />
 
 对于每个executor，scheduler会调用其heartbeat()方法。心跳过程主要包括几个步骤：
 
@@ -93,7 +93,7 @@ scheduler内部运行着许多定时任务，由EventScheduler管理。
 
 现在我们来看具体的executor。首先是CeleryExecutor。
 
-![image-20250503233533658](assets/image-20250503233533658.png)
+![image-20250503233533658](https://s2.loli.net/2025/12/02/YuAxlrDZMyf9FGo.png)
 
 它的初始化过程相对简单。大部分初始化工作都在__init__方法中完成。它会初始化两个重要的对象：BulkStateFetcher，用于批量获取任务状态，以及Tasks map，用于跟踪任务。
 
@@ -101,7 +101,7 @@ scheduler内部运行着许多定时任务，由EventScheduler管理。
 
 对于每个获取到的状态，如果状态发生变化，比如从成功变为失败，scheduler会调用update_task_state来更新本地跟踪。这个过程依赖于Celery的Result Backend来获取最终状态。CeleryExecutor的执行流程是：**scheduler发送任务到Celery Broker，Worker从Broker获取并执行，完成后将结果写入Result Backend，scheduler通过Result Backend获取状态并更新。**
 
-![image-20250503233758677](assets/image-20250503233758677.png)
+![image-20250503233758677](https://s2.loli.net/2025/12/02/Mvm4nqeREjoHyUD.png)
 
 这是一个典型的异步任务队列模式。上图展示了CeleryWorker的工作方式。
 
@@ -120,7 +120,7 @@ scheduler内部运行着许多定时任务，由EventScheduler管理。
 
 由于某些组件的初始化比较复杂，KubernetesExecutor的start()方法被用来执行这些实际的初始化工作。
 
-![image-20250503233944780](assets/image-20250503233944780.png)
+![image-20250503233944780](https://s2.loli.net/2025/12/02/xYcyfr69BHEasIw.png)
 
 上图展示了KubernetesExecutor初始化过程中的关键步骤。
 

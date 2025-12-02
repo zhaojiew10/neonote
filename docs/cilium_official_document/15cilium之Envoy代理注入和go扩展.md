@@ -15,7 +15,7 @@ Cilium 是一个基于 eBPF 的高性能网络策略引擎，它非常擅长处�
 
 它的核心思想是：开发者只需要编写少量的 Go 代码，专注于解析你自己的 L7 协议，比如某个内部的 RPC 协议，或者某个特定的数据库协议。而 Cilium 的框架、高性能、强大的 L7 策略语言、访问日志，甚至未来的 kTLS 加密流量可见性，都由 Cilium 自己搞定。
 
-<img src="assets/proxylib_logical_flow.png" alt="proxylib_logical_flow.png" style="zoom:50%;" />
+<img src="https://s2.loli.net/2025/12/02/wtqfOGyTnYCzWxV.png" alt="proxylib_logical_flow.png" style="zoom:50%;" />
 
 你看这张图，绿色的框就是你的 Go 代码，负责解析协议；而 Cilium 和 Envoy 的框架负责处理数据流、应用策略、记录日志。开发者只需要专注于协议本身，其他底层的脏活累活交给 Cilium 和 Envoy。
 

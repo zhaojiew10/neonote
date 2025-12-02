@@ -9,7 +9,7 @@
 - 接着是CiliumBGPAdvertisement，它告诉Cilium要把哪些路由信息，比如Pod CIDR、Service IP，通过BGP通告出去。
 - 最后是CiliumBGPNodeConfigOverride，如果你觉得某个节点的配置需要特殊处理，就可以用这个来覆盖默认的集群配置。
 
-<img src="assets/image-20250501170857939.png" alt="image-20250501170857939" style="zoom:67%;" />
+<img src="https://s2.loli.net/2025/12/02/mcjnJ8KUNeXHWys.png" alt="image-20250501170857939" style="zoom:67%;" />
 
 这张图展示了它们之间的关系，大家可以参考一下。
 

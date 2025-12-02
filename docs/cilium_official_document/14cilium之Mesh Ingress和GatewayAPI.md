@@ -47,7 +47,7 @@ Kubernetes的Service对象有一个externalTrafficPolicy字段，它决定了流
 
 当流量到达Service端口时，**Cilium通过eBPF技术直接拦截并透明地将流量转发给Envoy**，这个过程是通过Linux内核的TPROXY机制实现的。这种深度集成带来了很多好处，但也意味着它在行为上会与那些独立的控制器有所不同，比如在客户端IP可见性、Network Policy应用等方面。这种深度集成带来的一个显著优势就是与Cilium Network Policy的无缝结合。由于流量通过Cilium的网络栈，Cilium的Envoy代理天然地成为了Network Policy的执行点。更有趣的是，对于Ingress和Gateway API流量，Cilium设置了两个逻辑上的Policy执行点。
 
-![../../../_images/ingress-policy.png](assets/ingress-policy.png)
+![../../../_images/ingress-policy.png](https://s2.loli.net/2025/12/02/MF7vj4tkuomZwq6.png)
 
 - 第一个是流量进入Envoy之前，根据来源IP被赋予一个特殊的身份标识，比如来自外部的流量会被标记为World，来自集群内部的流量则有其特定标识。
 - 第二个是流量离开Envoy、即将进入后端服务之前。这意味着，我们需要确保网络策略允许从外部世界到Ingress的流量，以及从Ingress到集群内部服务的流量。
